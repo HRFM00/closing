@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>締め計算システム - 39Outlet店舗管理システム</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Supabaseライブラリが読み込まれたことを確認し、グローバルクライアントを初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof window.supabase === 'undefined') {
+                console.error('Supabaseライブラリが読み込まれていません');
+            } else {
+                console.log('Supabaseライブラリが正常に読み込まれました');
+                // グローバルなSupabaseクライアントインスタンスを初期化（一度だけ）
+                if (typeof createSupabaseClient === 'function' && !window.supabaseClient) {
+                    window.supabaseClient = createSupabaseClient();
+                }
+            }
+        });
+    </script>
+</head>
+<body>
+    <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+        <h1 style="margin-bottom: 30px;"><i class="fas fa-cash-register"></i> 締め計算</h1>
+        
+        <div class="tool-content-header" style="margin-bottom: 30px;">
+            <p>レジ締めや売上集計の計算を効率化し、現金過不足を確認できます</p>
+        </div>
+
+        <div class="tool-form">
+            <div class="form-section">
+                <h4><i class="fas fa-store"></i> 店舗選択</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="store-select">店舗 <span class="required">*</span></label>
+                        <select id="store-select" onchange="updateRegisterFields()">
+                            <option value="">店舗を選択してください</option>
+                            <option value="iruma">入間店</option>
+                            <option value="tokorozawa">所沢店</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h4><i class="fas fa-cash-register"></i> レジ1情報入力</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="register1-cash">現金売上</label>
+                        <input type="number" id="register1-cash" min="0" step="1" placeholder="現金売上" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="register1-square">スクエア売上</label>
+                        <input type="number" id="register1-square" min="0" step="1" placeholder="スクエア売上" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="register1-gift">商品券</label>
+                        <input type="number" id="register1-gift" min="0" step="1" placeholder="商品券" value="0">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="register1-items">販売点数</label>
+                        <input type="number" id="register1-items" min="0" step="1" placeholder="販売点数" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="register1-customers">客数</label>
+                        <input type="number" id="register1-customers" min="0" step="1" placeholder="客数" value="0">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section" id="register2-section" style="display: none;">
+                <h4><i class="fas fa-cash-register"></i> レジ2情報入力</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="register2-cash">現金売上</label>
+                        <input type="number" id="register2-cash" min="0" step="1" placeholder="現金売上" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="register2-square">スクエア売上</label>
+                        <input type="number" id="register2-square" min="0" step="1" placeholder="スクエア売上" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="register2-gift">商品券</label>
+                        <input type="number" id="register2-gift" min="0" step="1" placeholder="商品券" value="0">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="register2-items">販売点数</label>
+                        <input type="number" id="register2-items" min="0" step="1" placeholder="販売点数" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="register2-customers">客数</label>
+                        <input type="number" id="register2-customers" min="0" step="1" placeholder="客数" value="0">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h4><i class="fas fa-user"></i> 担当者情報</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="staff-name">担当者名 <span class="required">*</span></label>
+                        <input type="text" id="staff-name" placeholder="担当者名を入力してください" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h4><i class="fas fa-calendar"></i> 日付設定</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="closing-date">計算対象日 <span class="required">*</span></label>
+                        <input type="date" id="closing-date" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h4><i class="fas fa-calendar-day"></i> 祝日設定</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="is-holiday-today">
+                            指定日は祝日
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="calculateClosing()">
+                    <i class="fas fa-calculator"></i> 締め計算を実行
+                </button>
+                <button class="btn btn-secondary" onclick="clearClosingForm()">
+                    <i class="fas fa-undo"></i> 入力をクリア
+                </button>
+            </div>
+
+            <div id="closing-result" class="calculation-result" style="display: none;">
+                <div class="result-header">
+                    <h4><i class="fas fa-chart-line"></i> 計算結果</h4>
+                </div>
+                <div class="result-details">
+                    <div class="result-item">
+                        <span class="result-label">計算対象日</span>
+                        <span id="closing-date-display" class="result-value">未設定</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">レジ1現金売上</span>
+                        <span id="register1-cash-total" class="result-value price">¥0</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">レジ1スクエア売上</span>
+                        <span id="register1-square-total" class="result-value price">¥0</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">レジ1商品券</span>
+                        <span id="register1-gift-total" class="result-value price">¥0</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">レジ1合計</span>
+                        <span id="register1-total" class="result-value price">¥0</span>
+                    </div>
+                    <div class="result-item" id="register2-cash-result" style="display: none;">
+                        <span class="result-label">レジ2現金売上</span>
+                        <span id="register2-cash-total" class="result-value price">¥0</span>
+                    </div>
+                    <div class="result-item" id="register2-square-result" style="display: none;">
+                        <span class="result-label">レジ2スクエア売上</span>
+                        <span id="register2-square-total" class="result-value price">¥0</span>
+                    </div>
+                    <div class="result-item" id="register2-gift-result" style="display: none;">
+                        <span class="result-label">レジ2商品券</span>
+                        <span id="register2-gift-total" class="result-value price">¥0</span>
+                    </div>
+                    <div class="result-item" id="register2-total-result" style="display: none;">
+                        <span class="result-label">レジ2合計</span>
+                        <span id="register2-total" class="result-value price">¥0</span>
+                    </div>
+                    <div class="result-item total">
+                        <span class="result-label">総売上</span>
+                        <span id="total-sales" class="result-value price">¥0</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">販売点数</span>
+                        <span id="total-items-display" class="result-value">0点</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">客数</span>
+                        <span id="total-customers-display" class="result-value">0人</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">客単価</span>
+                        <span id="average-per-customer" class="result-value price">¥0</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">点単価</span>
+                        <span id="average-per-item" class="result-value price">¥0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 詳細レポート表示 -->
+            <div id="closing-report" class="calculation-result" style="display: none;">
+                <div class="result-header">
+                    <h4><i class="fas fa-file-alt"></i> 詳細レポート</h4>
+                </div>
+                <div class="result-details">
+                    <div class="report-item">
+                        <span class="report-label">年月日</span>
+                        <span id="report-date" class="report-value">2024年1月1日</span>
+                    </div>
+                    <div class="report-item">
+                        <span class="report-label">担当者</span>
+                        <span id="report-staff" class="report-value">未設定</span>
+                    </div>
+                    <div class="report-item">
+                        <span class="report-label">店舗</span>
+                        <span id="report-store" class="report-value">39Outlet 未選択</span>
+                    </div>
+                    <div class="report-item">
+                        <span class="report-label">今月予算</span>
+                        <span id="report-monthly-budget" class="report-value price">¥0</span>
+                    </div>
+                    <div class="report-item">
+                        <span class="report-label">今月予算累計</span>
+                        <span id="report-monthly-total" class="report-value price">¥0</span>
+                    </div>
+                    <div class="report-item">
+                        <span class="report-label">今月達成率</span>
+                        <span id="report-monthly-achievement" class="report-value">0.0%</span>
+                    </div>
+                    <div class="report-item">
+                        <span class="report-label">本日予算</span>
+                        <span id="report-daily-budget" class="report-value price">¥0</span>
+                    </div>
+                    <div class="report-item">
+                        <span class="report-label">本日売上</span>
+                        <span id="report-daily-sales" class="report-value price">¥0</span>
+                    </div>
+                    <div class="report-item">
+                        <span class="report-label">本日達成率</span>
+                        <span id="report-daily-achievement" class="report-value">0.0%</span>
+                    </div>
+                    <div class="report-item">
+                        <span class="report-label">現金売上</span>
+                        <span id="report-cash-sales" class="report-value price">¥0</span>
+                    </div>
+                    <div class="report-item">
+                        <span class="report-label">キャッシュレス売上</span>
+                        <span id="report-cashless-sales" class="report-value price">¥0</span>
+                    </div>
+                    <div class="report-item">
+                        <span class="report-label">商品券利用</span>
+                        <span id="report-gift-sales" class="report-value price">¥0</span>
+                    </div>
+                    <div class="report-item">
+                        <span class="report-label">販売点数</span>
+                        <span id="report-items" class="report-value">0点</span>
+                    </div>
+                    <div class="report-item">
+                        <span class="report-label">客数</span>
+                        <span id="report-customers" class="report-value">0人</span>
+                    </div>
+                    <div class="report-item">
+                        <span class="report-label">客単価</span>
+                        <span id="report-customer-average" class="report-value price">¥0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 保存された締め計算結果表示 -->
+            <div id="saved-closing-results" class="calculation-result" style="display: none;">
+                <div class="result-header">
+                    <h4><i class="fas fa-database"></i> 保存された締め計算結果</h4>
+                    <div class="result-actions">
+                        <button class="btn btn-sm btn-secondary" onclick="loadSavedClosingResults()">
+                            <i class="fas fa-sync"></i> 更新
+                        </button>
+                    </div>
+                </div>
+                <div id="saved-results-list" class="result-details">
+                    <!-- 保存された結果がここに表示されます -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="supabase-config.js"></script>
+    <script src="tools.js"></script>
+    <script>
+        // 日付フィールドを今日の日付で初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            const closingDateField = document.getElementById('closing-date');
+            if (closingDateField) {
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                closingDateField.value = `${year}-${month}-${day}`;
+            }
+            
+            // 祝日設定を復元
+            restoreHolidaySetting();
+        });
+    </script>
+</body>
+</html>
+
